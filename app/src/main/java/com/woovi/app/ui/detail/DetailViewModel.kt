@@ -50,7 +50,7 @@ class DetailViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isDeleting = true, errorMessage = null) }
             try {
-                repository.deleteItem(itemId)
+                repository.deleteItem(itemId, _uiState.value.item?.coverPath)
                 _uiState.update { it.copy(isDeleting = false, deleted = true) }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e

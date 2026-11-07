@@ -1,9 +1,12 @@
 package com.woovi.app.ui.form
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.woovi.app.core.error.toUserMessage
+import com.woovi.app.core.util.ImageProcessor
 import com.woovi.app.core.util.wooviViewModelFactory
 import com.woovi.app.data.model.MediaItem
 import com.woovi.app.data.model.MediaItemInput
@@ -29,11 +32,18 @@ data class FormFields(
     val finishDate: String? = null
 )
 
+class PickedCover(val bytes: ByteArray)
+
 data class ItemFormUiState(
     val fields: FormFields = FormFields(),
     val isLoading: Boolean = false,
     val loadFailed: Boolean = false,
     val isSaving: Boolean = false,
+    val existingCoverPath: String? = null,
+    val pickedCover: PickedCover? = null,
+    val coverRemoved: Boolean = false,
+    val isProcessingImage: Boolean = false,
+    val coverError: String? = null,
     val titleError: String? = null,
     val genresError: String? = null,
     val descriptionError: String? = null,
@@ -45,6 +55,7 @@ data class ItemFormUiState(
 
 class ItemFormViewModel(
     private val repository: MediaRepository,
+    private val appContext: Context,
     private val itemId: String?
 ) : ViewModel() {
 
@@ -64,7 +75,9 @@ class ItemFormViewModel(
             _uiState.update { it.copy(isLoading = true, loadFailed = false, errorMessage = null) }
             try {
                 val item = repository.getItem(id)
-                _uiState.update { it.copy(isLoading = false, fields = item.toFields()) }
+                _uiState.update {
+                    it.copy(isLoading = false, fields = item.toFields(), existingCoverPath = item.coverPath)
+                }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.e("Woovi", "Error al cargar la obra para editar", e)
@@ -79,8 +92,31 @@ class ItemFormViewModel(
         _uiState.update { it.copy(fields = transform(it.fields)) }
     }
 
+    fun onImagePicked(uri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isProcessingImage = true, coverError = null) }
+            try {
+                val bytes = ImageProcessor.toJpegBytes(appContext, uri)
+                _uiState.update {
+                    it.copy(isProcessingImage = false, pickedCover = PickedCover(bytes), coverRemoved = false)
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e("Woovi", "Error al procesar la imagen", e)
+                _uiState.update { it.copy(isProcessingImage = false, coverError = e.toUserMessage()) }
+            }
+        }
+    }
+
+    fun removeCover() {
+        _uiState.update {
+            it.copy(pickedCover = null, coverRemoved = it.existingCoverPath != null, coverError = null)
+        }
+    }
+
     fun save() {
-        val f = _uiState.value.fields
+        val state = _uiState.value
+        val f = state.fields
         val title = f.title.trim()
         val genres = parseGenres(f.genres)
 
@@ -117,10 +153,13 @@ class ItemFormViewModel(
             description = f.description.trim().ifEmpty { null },
             genres = genres,
             rating = f.rating,
+            coverPath = state.existingCoverPath,
             notes = f.notes.trim().ifEmpty { null },
             startDate = f.startDate,
             finishDate = f.finishDate
         )
+        val newCoverBytes = state.pickedCover?.bytes
+        val removeCover = state.coverRemoved
 
         viewModelScope.launch {
             _uiState.update {
@@ -131,10 +170,10 @@ class ItemFormViewModel(
             }
             try {
                 if (itemId == null) {
-                    repository.addItem(input)
+                    repository.createItem(input, newCoverBytes)
                     _uiState.value = ItemFormUiState(saved = true)
                 } else {
-                    repository.updateItem(itemId, input)
+                    repository.editItem(itemId, input, newCoverBytes, removeCover)
                     _uiState.update { it.copy(isSaving = false, saved = true) }
                 }
             } catch (e: Exception) {
@@ -166,7 +205,7 @@ class ItemFormViewModel(
 
     companion object {
         fun factory(itemId: String?) = wooviViewModelFactory {
-            ItemFormViewModel(it.mediaRepository, itemId)
+            ItemFormViewModel(it.mediaRepository, it.appContext, itemId)
         }
     }
 }

@@ -43,7 +43,7 @@ import com.woovi.app.ui.components.ErrorState
 import com.woovi.app.ui.components.LoadingBox
 import com.woovi.app.ui.components.MessageBanner
 import com.woovi.app.ui.components.StatusChip
-
+import com.woovi.app.ui.components.CoverImage
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DetailScreen(
@@ -113,21 +113,16 @@ private fun DetailContent(
 
         errorMessage?.let { MessageBanner(message = it, isError = true) }
 
-        Box(
+        CoverImage(
+            coverPath = item.coverPath,
+            title = item.title,
+            placeholderColor = MaterialTheme.colorScheme.primaryContainer,
             modifier = Modifier
                 .fillMaxWidth(0.55f)
                 .aspectRatio(2f / 3f)
                 .align(Alignment.CenterHorizontally)
                 .clip(MaterialTheme.shapes.large)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = item.title.take(1).uppercase(),
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
+        )
 
         Text(item.title, style = MaterialTheme.typography.headlineMedium)
 

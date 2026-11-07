@@ -1,6 +1,7 @@
 package com.woovi.app.core.error
-
+import com.woovi.app.core.util.InvalidImageException
 fun Throwable.toUserMessage(): String {
+    if (this is InvalidImageException) return message ?: "No pudimos usar esa imagen."
     val m = message.orEmpty().lowercase()
     return when {
         "invalid login credentials" in m || "invalid_credentials" in m ->
@@ -17,6 +18,10 @@ fun Throwable.toUserMessage(): String {
             "No tienes permiso para hacer esto."
         "check constraint" in m || "violates" in m ->
             "Alguno de los datos no es válido. Revísalos e inténtalo de nuevo."
+        "maximum allowed size" in m || "payload too large" in m ->
+            "La imagen es demasiado pesada."
+        "mime type" in m || "not supported" in m ->
+            "Ese tipo de imagen no está permitido."
         else -> "Algo salió mal. Inténtalo de nuevo."
     }
 }
