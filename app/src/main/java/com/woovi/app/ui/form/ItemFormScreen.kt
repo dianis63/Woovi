@@ -38,7 +38,7 @@ import com.woovi.app.ui.components.WooviTextField
 
 @Composable
 fun ItemFormScreen(
-    itemId: String?,                       // null = agregar, con id = editar
+    itemId: String?,
     onFinished: () -> Unit,
     onBack: (() -> Unit)? = null,
     viewModel: ItemFormViewModel = viewModel(factory = ItemFormViewModel.factory(itemId))
@@ -83,10 +83,19 @@ fun ItemFormScreen(
                 value = fields.title,
                 onValueChange = { v -> viewModel.updateFields { it.copy(title = v) } },
                 label = "Título *",
+
                 modifier = Modifier.fillMaxWidth(),
                 errorText = state.titleError
             )
-
+            CoverPicker(
+                existingCoverPath = if (state.coverRemoved) null else state.existingCoverPath,
+                pickedCover = state.pickedCover,
+                isProcessing = state.isProcessingImage,
+                errorText = state.coverError,
+                title = fields.title,
+                onPicked = { viewModel.onImagePicked(it) },
+                onRemove = { viewModel.removeCover() }
+            )
             Text("Tipo de contenido *", style = MaterialTheme.typography.titleMedium)
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -176,7 +185,7 @@ fun ItemFormScreen(
             Spacer(Modifier.height(8.dp))
             Button(
                 onClick = { viewModel.save() },
-                enabled = !state.isSaving,
+                enabled = !state.isSaving && !state.isProcessingImage,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),

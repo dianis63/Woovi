@@ -30,6 +30,7 @@ data class MediaItemInput(
     val description: String?,
     val genres: List<String>,
     val rating: Int?,
+    @SerialName("cover_path") val coverPath: String?,
     val notes: String?,
     @SerialName("start_date") val startDate: String?,
     @SerialName("finish_date") val finishDate: String?
